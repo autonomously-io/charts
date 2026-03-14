@@ -1,0 +1,25 @@
+# a10y - Autonomously understands and restores your network
+
+# -- Engine configuration
+engine:
+  logLevel: info
+
+# -- OpenObserve - observability platform
+openobserve:
+  enabled: true
+
+# -- Keep - alert management
+keep:
+  enabled: true
+
+# -- NATS - messaging
+nats:
+  enabled: true
+
+# -- Qdrant - vector database
+qdrant:
+  enabled: true
+
+# -- Vector - log/metric pipeline
+vector:
+  enabled: true

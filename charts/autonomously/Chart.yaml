@@ -1,0 +1,28 @@
+apiVersion: v2
+name: autonomously
+description: "a10y - Autonomously understands and restores your network"
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+  - name: openobserve
+    version: "0.3.*"
+    repository: "https://charts.openobserve.ai"
+    condition: openobserve.enabled
+  - name: keep
+    version: "0.1.*"
+    repository: "https://keephq.github.io/helm-charts"
+    condition: keep.enabled
+  - name: nats
+    version: "1.*"
+    repository: "https://nats-io.github.io/k8s/helm/charts/"
+    condition: nats.enabled
+  - name: qdrant
+    version: "0.1.*"
+    repository: "https://qdrant.github.io/qdrant-helm"
+    condition: qdrant.enabled
+  - name: vector
+    version: "0.3.*"
+    repository: "https://helm.vector.dev"
+    condition: vector.enabled
