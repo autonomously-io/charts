@@ -1,0 +1,19 @@
+{{- range $name, $comp := .Values.components }}
+{{- if and (default true $comp.enabled) $comp.persistence }}
+{{- if $comp.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "autonomously.componentName" (dict "root" $ "name" $name) }}-data
+  labels:
+    {{- include "autonomously.componentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ $comp.persistence.size }}
+{{- end }}
+{{- end }}
+{{- end }}

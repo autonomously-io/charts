@@ -1,0 +1,12 @@
+# Disable all custom components - deploy only 3rd-party dependencies
+components:
+  llm-engine:
+    enabled: false
+  aether-ide:
+    enabled: false
+  aether-term:
+    enabled: false
+  vector-aggregator:
+    enabled: false
+  active-inventory:
+    enabled: false

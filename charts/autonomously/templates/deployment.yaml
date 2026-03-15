@@ -1,0 +1,82 @@
+{{- range $name, $comp := .Values.components }}
+{{- if and (default true $comp.enabled) $comp.image }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "autonomously.componentName" (dict "root" $ "name" $name) }}
+  labels:
+    {{- include "autonomously.componentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  replicas: {{ default 1 $comp.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "autonomously.componentSelectorLabels" (dict "root" $ "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "autonomously.componentSelectorLabels" (dict "root" $ "name" $name) | nindent 8 }}
+      {{- if $comp.configFiles }}
+      annotations:
+        checksum/config: {{ toJson $comp.configFiles | sha256sum }}
+      {{- end }}
+    spec:
+      containers:
+        - name: {{ $name }}
+          image: "{{ $comp.image.repository }}:{{ $comp.image.tag }}"
+          imagePullPolicy: {{ default "IfNotPresent" $comp.image.pullPolicy }}
+          {{- if $comp.ports }}
+          ports:
+            {{- range $comp.ports }}
+            - containerPort: {{ .port }}
+              name: {{ .name }}
+              protocol: {{ default "TCP" .protocol }}
+            {{- end }}
+          {{- end }}
+          {{- if or $comp.env $comp.secretEnv }}
+          env:
+            {{- range $key, $value := $comp.env }}
+            - name: {{ $key }}
+              value: {{ tpl (toString $value) $ | quote }}
+            {{- end }}
+            {{- range $comp.secretEnv }}
+            - name: {{ .envName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+                  optional: true
+            {{- end }}
+          {{- end }}
+          resources:
+            {{- toYaml $comp.resources | nindent 12 }}
+          {{- if or $comp.persistence $comp.configFiles }}
+          volumeMounts:
+            {{- if $comp.persistence }}
+            {{- if $comp.persistence.enabled }}
+            - name: data
+              mountPath: {{ default "/data" $comp.persistence.mountPath }}
+            {{- end }}
+            {{- end }}
+            {{- if $comp.configFiles }}
+            - name: config
+              mountPath: {{ default "/etc/config" $comp.configMountPath }}
+            {{- end }}
+          {{- end }}
+      {{- if or $comp.persistence $comp.configFiles }}
+      volumes:
+        {{- if $comp.persistence }}
+        {{- if $comp.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "autonomously.componentName" (dict "root" $ "name" $name) }}-data
+        {{- end }}
+        {{- end }}
+        {{- if $comp.configFiles }}
+        - name: config
+          configMap:
+            name: {{ include "autonomously.componentName" (dict "root" $ "name" $name) }}-config
+        {{- end }}
+      {{- end }}
+{{- end }}
+{{- end }}

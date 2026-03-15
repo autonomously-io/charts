@@ -33,7 +33,7 @@ Common labels
 */}}
 {{- define "autonomously.labels" -}}
 helm.sh/chart: {{ include "autonomously.chart" . }}
-{{ include "autonomously.selectorLabels" . }}
+app.kubernetes.io/part-of: a10y
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -41,9 +41,26 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
-Selector labels
+Component full name: <release>-<component>
 */}}
-{{- define "autonomously.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "autonomously.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- define "autonomously.componentName" -}}
+{{- printf "%s-%s" .root.Release.Name .name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Component labels
+*/}}
+{{- define "autonomously.componentLabels" -}}
+{{ include "autonomously.labels" .root }}
+app.kubernetes.io/name: {{ .name }}
+app.kubernetes.io/component: {{ .name }}
+app.kubernetes.io/instance: {{ .root.Release.Name }}
+{{- end }}
+
+{{/*
+Component selector labels
+*/}}
+{{- define "autonomously.componentSelectorLabels" -}}
+app.kubernetes.io/name: {{ .name }}
+app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{- end }}

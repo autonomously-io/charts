@@ -1,0 +1,15 @@
+dependencies:
+- name: openobserve
+  repository: https://charts.openobserve.ai
+  version: 0.10.54
+- name: keep
+  repository: https://keephq.github.io/helm-charts
+  version: 0.1.95
+- name: nats
+  repository: https://nats-io.github.io/k8s/helm/charts/
+  version: 1.2.11
+- name: qdrant
+  repository: https://qdrant.github.io/qdrant-helm
+  version: 1.17.0
+digest: sha256:f168454d8f4dad017338180fa5296ff5b4d753730f4da4990966a3158f163f02
+generated: "2026-03-15T12:48:47.188347656+09:00"

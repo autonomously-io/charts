@@ -1,0 +1,16 @@
+{{- range $name, $comp := .Values.components }}
+{{- if and (default true $comp.enabled) $comp.configFiles }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "autonomously.componentName" (dict "root" $ "name" $name) }}-config
+  labels:
+    {{- include "autonomously.componentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+data:
+  {{- range $filename, $content := $comp.configFiles }}
+  {{ $filename }}: |
+    {{- $content | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

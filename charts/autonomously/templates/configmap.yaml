@@ -5,4 +5,4 @@ metadata:
   labels:
     {{- include "autonomously.labels" . | nindent 4 }}
 data:
-  LOG_LEVEL: {{ .Values.engine.logLevel | quote }}
+  RELEASE_NAME: {{ .Release.Name | quote }}

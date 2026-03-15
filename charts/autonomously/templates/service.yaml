@@ -1,0 +1,22 @@
+{{- range $name, $comp := .Values.components }}
+{{- if and (default true $comp.enabled) $comp.ports }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "autonomously.componentName" (dict "root" $ "name" $name) }}
+  labels:
+    {{- include "autonomously.componentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  type: {{ default "ClusterIP" $comp.serviceType }}
+  selector:
+    {{- include "autonomously.componentSelectorLabels" (dict "root" $ "name" $name) | nindent 4 }}
+  ports:
+    {{- range $comp.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .port }}
+      protocol: {{ default "TCP" .protocol }}
+    {{- end }}
+{{- end }}
+{{- end }}

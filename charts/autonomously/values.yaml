@@ -1,25 +1,267 @@
 # a10y - Autonomously understands and restores your network
 
-# -- Engine configuration
-engine:
-  logLevel: info
+# ==============================================================================
+# Custom components
+# ==============================================================================
+components:
+  correlation-engine:
+    enabled: true
+    image:
+      repository: ghcr.io/autonomously-io/correlation-engine
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    ports:
+      - name: http
+        port: 8000
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    env:
+      AI_MODEL: "claude-sonnet-4-20250514"
+      OPENOBSERVE_URL: "http://{{ .Release.Name }}-openobserve:5080"
+      OPENOBSERVE_USER: "admin@a10y.local"
+      KEEP_API_URL: "http://{{ .Release.Name }}-keep-backend:8080"
+      NATS_URL: "nats://{{ .Release.Name }}-a10y-nats:4222"
+      QDRANT_URL: "http://{{ .Release.Name }}-qdrant:6333"
+      QDRANT_COLLECTION: "incidents"
+      INVENTORY_URL: "http://{{ .Release.Name }}-active-inventory:8080"
+    secretEnv:
+      - secretName: correlation-engine-secrets
+        key: ANTHROPIC_API_KEY
+        envName: ANTHROPIC_API_KEY
+    gateway:
+      enabled: false
+
+  aether-ide:
+    enabled: true
+    image:
+      repository: ghcr.io/autonomously-io/aether-ide
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    ports:
+      - name: http
+        port: 8080
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    env:
+      CORRELATION_ENGINE_URL: "http://{{ .Release.Name }}-correlation-engine:8000"
+    gateway:
+      enabled: true
+      hostname: ide.a10y.local
+
+  aether-term:
+    enabled: true
+    image:
+      repository: ghcr.io/autonomously-io/aether-term
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    ports:
+      - name: http
+        port: 3000
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    env:
+      CORRELATION_ENGINE_URL: "http://{{ .Release.Name }}-correlation-engine:8000"
+    gateway:
+      enabled: false
+
+  vector-aggregator:
+    enabled: true
+    image:
+      repository: timberio/vector
+      tag: 0.41.1-alpine
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    ports:
+      - name: api
+        port: 8686
+      - name: vector
+        port: 6514
+      - name: syslog
+        port: 9000
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    configFiles:
+      vector.yaml: |
+        api:
+          enabled: true
+          address: "0.0.0.0:8686"
+        sources:
+          vector_agent:
+            type: vector
+            address: "0.0.0.0:6514"
+            version: "2"
+          perfsonar_syslog:
+            type: syslog
+            address: "0.0.0.0:9000"
+            mode: tcp
+        transforms:
+          parse_free5gc:
+            type: remap
+            inputs: ["vector_agent"]
+            source: |
+              .source_type = "free5gc"
+          parse_perfsonar:
+            type: remap
+            inputs: ["perfsonar_syslog"]
+            source: |
+              .source_type = "perfsonar"
+        sinks:
+          openobserve:
+            type: http
+            inputs: ["parse_free5gc", "parse_perfsonar"]
+            uri: "http://a10y-openobserve-router:5080/api/default/default/_json"
+            method: post
+            encoding:
+              codec: json
+            batch:
+              max_bytes: 10485760
+              timeout_secs: 5
+    configMountPath: /etc/vector
+    gateway:
+      enabled: false
+
+  active-inventory:
+    enabled: true
+    image:
+      repository: ghcr.io/autonomously-io/active-inventory
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    ports:
+      - name: http
+        port: 8080
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    gateway:
+      enabled: false
+
+# -- Default component settings (merged with each component)
+componentDefaults:
+  replicaCount: 1
+  pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  gateway:
+    enabled: false
+    parentRef:
+      name: a10y-gateway
+
+# ==============================================================================
+# 3rd-party dependencies
+# ==============================================================================
 
 # -- OpenObserve - observability platform
 openobserve:
   enabled: true
+  auth:
+    ZO_ROOT_USER_EMAIL: "admin@a10y.local"
+    ZO_ROOT_USER_PASSWORD: "changeme"
+  config:
+    ZO_LOCAL_MODE: "true"
+    ZO_LOCAL_MODE_STORAGE: "disk"
+    ZO_META_STORE: "sqlite"
+    ZO_TELEMETRY: "false"
+  postgres:
+    enabled: false
+    pgadmin:
+      enabled: false
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
 
 # -- Keep - alert management
 keep:
   enabled: true
+  backend:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+  frontend:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
 
-# -- NATS - messaging
-nats:
+# -- NATS - messaging (aliased to avoid name collision with OpenObserve's internal NATS)
+a10y-nats:
   enabled: true
+  config:
+    jetstream:
+      enabled: true
+      memoryStore:
+        maxSize: 256Mi
+      fileStore:
+        maxSize: 1Gi
+    monitor:
+      enabled: true
+      port: 8222
+  container:
+    merge:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
 
 # -- Qdrant - vector database
 qdrant:
   enabled: true
-
-# -- Vector - log/metric pipeline
-vector:
-  enabled: true
+  replicaCount: 1
+  persistence:
+    size: 20Gi
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
