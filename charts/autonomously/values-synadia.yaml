@@ -1,0 +1,38 @@
+# Overlay: connect this site to Aether Console through Synadia Cloud (NATS leaf node).
+# Outbound connection only; no inbound port is opened at the site.
+# See autonomously-io/correlation-engine docs/sync.md.
+#
+#   kubectl create secret generic a10y-synadia-creds --from-file=site.creds=<site user .creds>
+#   helm upgrade --install a10y . -f values.yaml -f values-synadia.yaml \
+#     --set components.correlation-engine.env.TENANT_ID=<console tenant id>
+
+components:
+  correlation-engine:
+    env:
+      TENANT_ID: "default"  # must match the tenant ID in Aether Console
+      RESYNC_INTERVAL_SECONDS: "300"
+
+a10y-nats:
+  config:
+    leafnodes:
+      enabled: true
+      merge:
+        remotes:
+          - url: "tls://connect.ngs.global"
+            credentials: /etc/nats-creds/site.creds
+  container:
+    patch:
+      - op: add
+        path: /volumeMounts/-
+        value:
+          name: synadia-creds
+          mountPath: /etc/nats-creds
+          readOnly: true
+  podTemplate:
+    patch:
+      - op: add
+        path: /spec/volumes/-
+        value:
+          name: synadia-creds
+          secret:
+            secretName: a10y-synadia-creds
