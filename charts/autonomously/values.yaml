@@ -22,7 +22,7 @@ components:
         cpu: "1"
         memory: 2Gi
     env:
-      AI_MODEL: "claude-sonnet-4-20250514"
+      AI_MODEL: "claude-opus-5-5"
       OPENOBSERVE_URL: "http://{{ .Release.Name }}-openobserve:5080"
       OPENOBSERVE_USER: "admin@a10y.local"
       KEEP_API_URL: "http://{{ .Release.Name }}-keep-backend:8080"
